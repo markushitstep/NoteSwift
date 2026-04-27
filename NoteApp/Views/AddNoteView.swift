@@ -5,6 +5,7 @@ struct AddNoteView: View {
     @State private var text: String = ""
     @State private var showToast = false
     @State private var errorMessage = ""
+    @State private var isLoading = false
 
     var onSave: (Note) -> Void
 
@@ -40,12 +41,14 @@ struct AddNoteView: View {
                     .onChange(of: text) { errorMessage = "" }
 
                 Button {
-                    validateAndSave()
+                    Task {
+                        await validateAndSave()
+                    }
                 } label: {
-                    Text("Save")
+                    Text(isLoading ? "Saving..." : "Save")
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
+                        .background(isLoading ? Color.gray : Color.blue)
                         .foregroundColor(.white)
                         .cornerRadius(20)
                 }
@@ -56,58 +59,44 @@ struct AddNoteView: View {
             .navigationTitle("Add Note")
 
             if showToast {
-                Text(errorMessage)
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(Color.red.opacity(0.9))
-                    .foregroundColor(.white)
-                    .cornerRadius(12)
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                ToastView(message: errorMessage)
             }
         }
         .animation(.easeInOut, value: showToast)
     }
 
-    private func validateAndSave() {
+    private func validateAndSave() async {
         let value = trimmedText
 
-        if value.isEmpty {
-            showError("Note cannot be empty.")
+        if let error = NoteValidator.validate(value) {
+            showError(error)
             return
         }
 
-        if value.count < 3 {
-            showError("Note must be at least 3 characters.")
-            return
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let weather = try await WeatherService().fetchWeather()
+
+            let newNote = Note(
+                text: value,
+                date: Date(),
+                temperature: weather.temperature,
+                weatherDescription: weather.description
+            )
+
+            onSave(newNote)
+            dismiss()
+        } catch WeatherServiceError.unauthorized {
+            showError("Weather API key is not active or invalid.")
+        } catch WeatherServiceError.invalidURL {
+            showError("Weather request URL is invalid.")
+        } catch WeatherServiceError.serverError {
+            showError("Weather server error. Try again later.")
+        } catch {
+            showError("Failed to load weather. Check your internet connection.")
         }
-
-        if value.count > 120 {
-            showError("Note must be no longer than 120 characters.")
-            return
-        }
-
-        if value.rangeOfCharacter(from: .decimalDigits) != nil {
-            showError("Numbers are not allowed.")
-            return
-        }
-
-        let allowedPattern = #"^[A-Za-zА-Яа-яЁёІіЇїЄєҐґ\s\.,!\?\-'"()]+$"#
-
-        if value.range(of: allowedPattern, options: .regularExpression) == nil {
-            showError("Only letters, spaces, and basic punctuation are allowed.")
-            return
-        }
-
-        let newNote = Note(
-            text: value,
-            date: Date(),
-            temperature: Double.random(in: 15...25)
-        )
-
-        onSave(newNote)
-        dismiss()
     }
 }
 
