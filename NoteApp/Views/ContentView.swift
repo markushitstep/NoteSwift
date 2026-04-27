@@ -1,8 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    
-    let notes: [Note] = [
+    @State private var notes: [Note] = [
         Note(text: "Run in the park", date: Date(), temperature: 18),
         Note(text: "Go to work", date: Date(), temperature: 20),
         Note(text: "Evening walk", date: Date(), temperature: 16)
@@ -28,6 +27,15 @@ struct ContentView: View {
                 .padding(.vertical, 4)
             }
             .navigationTitle("Notes")
+            .toolbar {
+                NavigationLink {
+                    AddNoteView { newNote in
+                        notes.append(newNote)
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
         }
     }
 }
