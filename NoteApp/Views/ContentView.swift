@@ -1,40 +1,36 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var notes: [Note] = [
-        Note(text: "Run in the park", date: Date(), temperature: 18),
-        Note(text: "Go to work", date: Date(), temperature: 20),
-        Note(text: "Evening walk", date: Date(), temperature: 16)
-    ]
+    private let storageService = StorageService()
+    @State private var notes: [Note] = []
     
     var body: some View {
         NavigationStack {
             List(notes) { note in
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(note.text)
-                        .font(.title)
-
-                Text(note.date, style: .date)
-                    .font(.headline)
-                
-                HStack {
-                    Image(systemName: "cloud")
-                    Text("\(note.temperature, specifier: "%.1f")°C")
-                }
-                .font(.headline)
-                    
-                }
-                .padding(.vertical, 4)
+                NavigationLink {
+                        NoteDetailView(note: note)
+                    } label: {
+                        NoteView(
+                            text: note.text,
+                            date: note.date,
+                            temperature: note.temperature
+                        )
+                    }
             }
             .navigationTitle("Notes")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 NavigationLink {
                     AddNoteView { newNote in
                         notes.append(newNote)
+                        storageService.save(notes)
                     }
                 } label: {
                     Image(systemName: "plus")
                 }
+            }
+            .onAppear {
+                notes = storageService.load()
             }
         }
     }
